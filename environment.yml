@@ -1,0 +1,6 @@
+name: env-project
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
