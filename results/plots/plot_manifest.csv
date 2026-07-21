@@ -1,0 +1,14 @@
+plot_file
+results/plots/classification/training_loss.png
+results/plots/classification/validation_loss.png
+results/plots/classification/macro_f1.png
+results/plots/classification/learning_curves.png
+results/plots/segmentation/training_loss.png
+results/plots/segmentation/validation_loss.png
+results/plots/segmentation/dice_curve.png
+results/plots/segmentation/iou_curve.png
+results/plots/segmentation/pixel_accuracy_curve.png
+results/plots/classification/precision_recall_curve.png
+results/plots/classification/roc_curve.png
+results/plots/classification/baseline_confusion_matrix.png
+results/plots/classification/cbam_confusion_matrix.png

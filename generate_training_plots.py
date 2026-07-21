@@ -55,13 +55,13 @@ def parse_args():
 
     parser.add_argument(
         "--baseline-classification-log",
-        default="logs/baseline_training.csv",
+        default="logs/baseline_seed42.csv",
         help="Baseline ResNet18 classification training CSV.",
     )
 
     parser.add_argument(
         "--cbam-classification-log",
-        default="logs/cbam_training.csv",
+        default="logs/cbam_seed42.csv",
         help="CBAM-ResNet18 classification training CSV.",
     )
 
