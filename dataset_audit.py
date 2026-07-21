@@ -2,9 +2,8 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# ==========================================================
+
 # Paths
-# ==========================================================
 
 DATA_DIR = "data"
 TRAIN_CSV = os.path.join(DATA_DIR, "train.csv")

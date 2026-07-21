@@ -52,4 +52,4 @@ class CheckpointSaver:
                 self.path
             )
 
-            print("✓ Best model saved.")
+            print("Best model saved.")

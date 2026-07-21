@@ -16,6 +16,7 @@ def train_one_epoch(
     scaler,
     device,
 ):
+
     model.train()
 
     running_loss = 0.0
@@ -68,10 +69,12 @@ def validate(
     for images, masks in tqdm(loader):
 
         images = images.to(device, non_blocking=True)
-
         masks = masks.to(device, non_blocking=True)
 
-        with torch.cuda.amp.autocast(enabled=device.type == "cuda"):
+        with torch.amp.autocast(
+            device_type=device.type,
+            enabled=device.type == "cuda"
+        ):
 
             outputs = model(images)
 
@@ -80,9 +83,7 @@ def validate(
         running_loss += loss.item()
 
         dice_total += dice_score(outputs, masks)
-
         iou_total += iou_score(outputs, masks)
-
         pixel_total += pixel_accuracy(outputs, masks)
 
     return {

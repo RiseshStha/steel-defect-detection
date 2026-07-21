@@ -6,7 +6,7 @@ import pandas as pd
 import torch
 from torch.utils.data import Dataset
 
-from src.utils1 import rle_decode
+from src.utils.rle import rle_decode
 
 
 class SteelSegmentationDataset(Dataset):

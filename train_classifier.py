@@ -10,6 +10,8 @@ from torch.optim import Adam
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 
+os.environ.setdefault("NO_ALBUMENTATIONS_UPDATE", "1")
+
 from src.utils.seed import set_seed
 from src.datasets.classification_dataset import ClassificationDataset
 from src.datasets.transforms import (
@@ -26,6 +28,11 @@ from src.train.callbacks import EarlyStopping, CheckpointSaver
 from src.train.utils import seed_everything
 
 warnings.filterwarnings("ignore")
+
+
+def seed_worker(worker_id):
+    worker_seed = torch.initial_seed() % 2**32
+    set_seed(worker_seed)
 
 
 # ==========================================================
@@ -52,16 +59,59 @@ CONFIG = {
     # Automatically generated paths
     "checkpoint_path": None,
     "log_path": None,
+    "result_path": None,
 }
 
 
-CONFIG["checkpoint_path"] = (
-    f"checkpoints/{CONFIG['model_type']}_seed{CONFIG['seed']}.pth"
-)
+def configure_output_paths():
+    model_slug = (
+        "baseline_resnet18"
+        if CONFIG["model_type"] == "baseline"
+        else "cbam_resnet18"
+    )
 
-CONFIG["log_path"] = (
-    f"logs/{CONFIG['model_type']}_seed{CONFIG['seed']}.csv"
-)
+    CONFIG["checkpoint_path"] = (
+        f"checkpoints/{model_slug}_seed{CONFIG['seed']}_best.pth"
+    )
+    CONFIG["log_path"] = f"logs/{CONFIG['model_type']}_seed{CONFIG['seed']}.csv"
+    CONFIG["result_path"] = (
+        f"results/classification_{CONFIG['model_type']}_seed{CONFIG['seed']}.csv"
+    )
+
+
+def write_seed_result(metrics_rows):
+    best_row = min(metrics_rows, key=lambda row: row["val_loss"])
+    peak_macro_f1_row = max(metrics_rows, key=lambda row: row["f1_macro"])
+    training_time_seconds = sum(row["epoch_time"] for row in metrics_rows)
+
+    row = {
+        "model": (
+            "Baseline ResNet18"
+            if CONFIG["model_type"] == "baseline"
+            else "CBAM-ResNet18"
+        ),
+        "seed": CONFIG["seed"],
+        "best_epoch": best_row["epoch"],
+        "selection_metric": "lowest_val_loss",
+        "val_loss": best_row["val_loss"],
+        "precision": best_row["precision"],
+        "recall": best_row["recall"],
+        "macro_f1": best_row["f1_macro"],
+        "micro_f1": best_row["f1_micro"],
+        "roc_auc": best_row["roc_auc"],
+        "training_time_seconds": training_time_seconds,
+        "training_time_minutes": training_time_seconds / 60.0,
+        "epochs_completed": len(metrics_rows),
+        "peak_macro_f1_epoch": peak_macro_f1_row["epoch"],
+        "peak_macro_f1": peak_macro_f1_row["f1_macro"],
+        "checkpoint_path": CONFIG["checkpoint_path"],
+        "log_path": CONFIG["log_path"],
+    }
+
+    os.makedirs("results", exist_ok=True)
+
+    pd.DataFrame([row]).to_csv(CONFIG["result_path"], index=False)
+    print(f"\nSeed result saved to {CONFIG['result_path']}")
 
 
 # ==========================================================
@@ -88,6 +138,7 @@ def main():
 
     CONFIG["model_type"] = args.model
     CONFIG["seed"] = args.seed
+    configure_output_paths()
 
     seed_everything(CONFIG["seed"])
     
@@ -107,6 +158,7 @@ def main():
     os.makedirs("checkpoints", exist_ok=True)
 
     os.makedirs("logs", exist_ok=True)
+    os.makedirs("results", exist_ok=True)
 
     # -----------------------------------------
     # Read CSV
@@ -146,6 +198,8 @@ def main():
         shuffle=True,
         num_workers=CONFIG["num_workers"],
         pin_memory=torch.cuda.is_available(),
+        worker_init_fn=seed_worker,
+        generator=torch.Generator().manual_seed(CONFIG["seed"]),
     )
 
     val_loader = DataLoader(
@@ -154,6 +208,8 @@ def main():
         shuffle=False,
         num_workers=CONFIG["num_workers"],
         pin_memory=torch.cuda.is_available(),
+        worker_init_fn=seed_worker,
+        generator=torch.Generator().manual_seed(CONFIG["seed"]),
     )
 
     # -----------------------------------------
@@ -215,6 +271,10 @@ def main():
     print(f"Epochs : {CONFIG['epochs']}")
 
     print(f"Learning Rate : {CONFIG['learning_rate']}")
+    print(f"Seed : {CONFIG['seed']}")
+    print(f"Checkpoint : {CONFIG['checkpoint_path']}")
+    print(f"Log : {CONFIG['log_path']}")
+    print(f"Result : {CONFIG['result_path']}")
 
     # -------------------------------------------------
     # CSV Logger
@@ -242,6 +302,8 @@ def main():
     # -------------------------------------------------
     # Training Loop
     # -------------------------------------------------
+
+    metrics_rows = []
 
     for epoch in range(CONFIG["epochs"]):
 
@@ -302,10 +364,25 @@ def main():
                 epoch_time
             ])
 
+        metrics_rows.append({
+            "epoch": epoch + 1,
+            "train_loss": train_loss,
+            "val_loss": val_loss,
+            "precision": metrics["precision"],
+            "recall": metrics["recall"],
+            "f1_macro": metrics["f1_macro"],
+            "f1_micro": metrics["f1_micro"],
+            "roc_auc": metrics["roc_auc"],
+            "lr": lr,
+            "epoch_time": epoch_time,
+        })
+
         if early_stopping.stop:
 
             print("\nEarly stopping triggered.")
             break
+
+    write_seed_result(metrics_rows)
 
     print("\nTraining completed successfully.")
     

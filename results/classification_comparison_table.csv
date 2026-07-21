@@ -1,0 +1,8 @@
+metric,baseline,cbam
+Best Epoch,7,9
+Precision,0.8953,0.9156
+Recall,0.8000,0.8447
+Macro F1,0.8341,0.8777
+Micro F1,0.8989,0.9128
+ROC AUC,0.9860,0.9915
+Training Time (min),7.66,10.70
